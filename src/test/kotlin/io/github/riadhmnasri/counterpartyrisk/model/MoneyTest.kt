@@ -54,6 +54,16 @@ class MoneyTest {
     }
 
     @Test
+    fun `subtracting amounts in different currencies is rejected`() {
+        // Given
+        val tenDollars = Money(BigDecimal("10.00"), usd)
+        val tenEuros = Money(BigDecimal("10.00"), Currency("EUR"))
+
+        // When / Then
+        assertThatIllegalArgumentException().isThrownBy { tenDollars.subtract(tenEuros) }
+    }
+
+    @Test
     fun `multiplying scales the amount by the given factor`() {
         // Given
         val hundred = Money(BigDecimal("100.00"), usd)
