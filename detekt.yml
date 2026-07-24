@@ -4,6 +4,7 @@ build:
 style:
   MagicNumber:
     active: true
+    ignorePropertyDeclaration: true
     ignoreNumbers:
       - '-1'
       - '0'
