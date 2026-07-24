@@ -36,4 +36,17 @@ class RateTest {
         // Given / When / Then
         assertThatIllegalArgumentException().isThrownBy { Rate.ofPercentage(-1.0) }
     }
+
+    @Test
+    fun `the BigDecimal overloads of ofPercentage and ofDecimal agree with the Double ones`() {
+        // Given / When
+        val fourPercentFromDouble = Rate.ofPercentage(4.0)
+        val fourPercentFromBigDecimal = Rate.ofPercentage(BigDecimal("4"))
+        val fourHundredthsFromDouble = Rate.ofDecimal(0.04)
+        val fourHundredthsFromBigDecimal = Rate.ofDecimal(BigDecimal("0.04"))
+
+        // Then
+        assertThat(fourPercentFromBigDecimal).isEqualTo(fourPercentFromDouble)
+        assertThat(fourHundredthsFromBigDecimal).isEqualTo(fourHundredthsFromDouble)
+    }
 }
