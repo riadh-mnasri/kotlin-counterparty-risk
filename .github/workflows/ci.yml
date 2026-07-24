@@ -18,4 +18,11 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - run: ./gradlew build
+      - run: ./gradlew build koverHtmlReport
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kover-html-report
+          path: build/reports/kover/html
+          retention-days: 14
