@@ -2,7 +2,7 @@
 
 ## English
 
-This library computes risk figures (exposure, expected loss, CVA) from data you provide; it does not handle network input, authentication, or untrusted file parsing, so its attack surface is small. It is explicitly **not** a regulatory or production risk engine — see the disclaimer at the top of the README — so a bug here should not be treated as a financial security incident, but if you find a genuine security issue (for example, an input that causes a crash or an infinite loop), please report it privately by emailing **riadh.mnasri@gmail.com** rather than opening a public issue.
+This library computes risk figures (exposure, expected loss, CVA) from data you provide; it does not handle network input, authentication, or untrusted file parsing, so its attack surface is small. It is explicitly **not** a regulatory or production risk engine (see the disclaimer at the top of the README), so a bug here should not be treated as a financial security incident, but if you find a genuine security issue (for example, an input that causes a crash or an infinite loop), please report it privately by emailing **riadh.mnasri@gmail.com** rather than opening a public issue.
 
 Please include:
 
@@ -13,7 +13,7 @@ You should expect an initial response within a few days. Once a fix is available
 
 ## Français
 
-Cette librairie calcule des indicateurs de risque (exposition, perte attendue, CVA) à partir de données que vous fournissez ; elle ne traite ni entrée réseau, ni authentification, ni fichiers non fiables, donc sa surface d'attaque est réduite. Ce n'est explicitement **pas** un moteur de risque réglementaire ou de production — voir le disclaimer en tête du README — donc un bug ici ne doit pas être traité comme un incident de sécurité financière, mais si vous trouvez malgré tout un vrai problème de sécurité (par exemple une entrée qui provoque un plantage ou une boucle infinie), merci de le signaler en privé par email à **riadh.mnasri@gmail.com** plutôt que d'ouvrir une issue publique.
+Cette librairie calcule des indicateurs de risque (exposition, perte attendue, CVA) à partir de données que vous fournissez ; elle ne traite ni entrée réseau, ni authentification, ni fichiers non fiables, donc sa surface d'attaque est réduite. Ce n'est explicitement **pas** un moteur de risque réglementaire ou de production (voir le disclaimer en tête du README), donc un bug ici ne doit pas être traité comme un incident de sécurité financière, mais si vous trouvez malgré tout un vrai problème de sécurité (par exemple une entrée qui provoque un plantage ou une boucle infinie), merci de le signaler en privé par email à **riadh.mnasri@gmail.com** plutôt que d'ouvrir une issue publique.
 
 Merci d'inclure :
 

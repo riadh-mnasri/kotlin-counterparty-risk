@@ -25,10 +25,10 @@ Une librairie Kotlin pour calculer l'exposition au risque de contrepartie (EAD),
 
 - Les tables de probabilité de défaut et de décotes sont **définies par l'application**, pas de vraies tables d'agence de notation ou de texte réglementaire (Bâle, CRR...).
 - Pas de CVA multi-période ni de courbe de crédit : c'est une approximation linéaire à un seul point dans le temps.
-- Pas d'exposition simulée dans le temps (PFE/EPE par Monte Carlo), ni d'approche IMM avec multiplicateur alpha — c'est un calcul d'exposition à un instant donné.
+- Pas d'exposition simulée dans le temps (PFE/EPE par Monte Carlo), ni d'approche IMM avec multiplicateur alpha : c'est un calcul d'exposition à un instant donné.
 - La perte en cas de défaut (LGD) est un taux fixe de 45%, pas modélisée par type de collatéral.
 
-Ce sont de bons points de départ pour une première contribution — voir [CONTRIBUTING.md](CONTRIBUTING.md).
+Ce sont de bons points de départ pour une première contribution, voir [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
@@ -155,7 +155,7 @@ Pour voir ces six étapes enchaînées sur une netting set à deux transactions,
 - **Expected Loss (perte attendue)** : `PD × LGD × EAD`, la perte moyenne anticipée sur l'horizon considéré.
 - **CVA (Credit Valuation Adjustment)** : l'ajustement de valeur qui reflète le risque de contrepartie, c'est-à-dire combien coûte le risque que la contrepartie fasse défaut avant l'échéance.
 - **Netting Set** : un ensemble de transactions avec une même contrepartie, compensées entre elles sous un accord-cadre (GMRA pour les repos, GMSLA pour les prêts de titres), pour calculer une exposition nette plutôt que brute transaction par transaction.
-- **Repo / Securities Lending (SFT)** : des opérations de financement sur titres — un repo échange du cash contre des titres remis en garantie, un prêt de titres prête un titre contre du collatéral (souvent du cash).
+- **Repo / Securities Lending (SFT)** : des opérations de financement sur titres, où un repo échange du cash contre des titres remis en garantie et un prêt de titres prête un titre contre du collatéral (souvent du cash).
 - **Credit Limit (limite de crédit)** : le montant maximal d'exposition qu'une institution accepte de prendre sur une contrepartie donnée.
 
 ## Qualité et développement

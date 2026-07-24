@@ -25,7 +25,7 @@ A Kotlin library for computing counterparty credit risk exposure (EAD), expected
 
 - The probability-of-default and haircut tables are **app-defined**, not real rating agency or regulatory (Basel, CRR...) tables.
 - No multi-period CVA or credit curve: this is a single-point-in-time linear approximation.
-- No simulated exposure over time (Monte Carlo PFE/EPE), no IMM approach with an alpha multiplier — this is a point-in-time exposure calculation.
+- No simulated exposure over time (Monte Carlo PFE/EPE), no IMM approach with an alpha multiplier: this is a point-in-time exposure calculation.
 - Loss Given Default (LGD) is a flat 45% rate, not modeled per collateral type.
 
 These are good starting points for a first contribution, see [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -155,7 +155,7 @@ To see these six steps chained together over a netting set with two transactions
 - **Expected Loss**: `PD × LGD × EAD`, the average anticipated loss over the horizon considered.
 - **CVA (Credit Valuation Adjustment)**: the value adjustment reflecting counterparty risk, i.e. how much the risk of the counterparty defaulting before maturity is worth.
 - **Netting Set**: a group of transactions with the same counterparty, netted together under a master agreement (GMRA for repos, GMSLA for securities lending), to compute a net exposure rather than a gross, transaction-by-transaction one.
-- **Repo / Securities Lending (SFT)**: securities financing transactions — a repo exchanges cash for securities posted as collateral, securities lending lends out a security against collateral (often cash).
+- **Repo / Securities Lending (SFT)**: securities financing transactions, where a repo exchanges cash for securities posted as collateral and securities lending lends out a security against collateral (often cash).
 - **Credit Limit**: the maximum exposure amount an institution is willing to take on a given counterparty.
 
 ## Quality and development
