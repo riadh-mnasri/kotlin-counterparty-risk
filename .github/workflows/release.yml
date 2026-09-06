@@ -8,6 +8,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      MAVEN_CENTRAL_USERNAME: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername }}
     steps:
       - uses: actions/checkout@v4
 
@@ -20,13 +22,13 @@ jobs:
 
       - run: ./gradlew build
 
-      - if: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername != '' }}
+      - if: ${{ env.MAVEN_CENTRAL_USERNAME != '' }}
         run: ./gradlew publish --no-configuration-cache
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralPassword }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKey }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword }}
 
-      - if: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername == '' }}
+      - if: ${{ env.MAVEN_CENTRAL_USERNAME == '' }}
         run: echo "Skipping Maven Central publish, ORG_GRADLE_PROJECT_mavenCentralUsername is not set yet."
