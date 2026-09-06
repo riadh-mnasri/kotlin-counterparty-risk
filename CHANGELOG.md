@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- `CreditRating`'s 1-year probability-of-default table is now inspired by S&P Global Ratings' published long-run average default rates by rating category, instead of arbitrary app-defined figures (still indicative only, see the README disclaimer). Values changed: AAA 0.01% → 0.00%, BB 1.0% → 0.62%, B 3.0% → 3.5%, CCC 8.0% → 27.0%. AA, A, BBB and D are unchanged.
+
 ### Added
 
 - Each `AssetClass` now carries an app-defined `lgd` (Loss Given Default) assumption. `computeExpectedLoss` gains an optional `lgd` parameter so callers can vary LGD by collateral quality instead of the flat 45% default.

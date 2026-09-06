@@ -7,9 +7,15 @@ import java.math.BigDecimal
 
 class CreditRatingTest {
     @Test
-    fun `a top grade has a very low probability of default`() {
+    fun `each grade carries its own one-year probability of default`() {
         // Given / When / Then
-        assertThat(CreditRating.AAA.probabilityOfDefault1y.asDecimal).isEqualByComparingTo(BigDecimal("0.0001"))
+        assertThat(CreditRating.AAA.probabilityOfDefault1y.asDecimal).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(CreditRating.AA.probabilityOfDefault1y.asDecimal).isEqualByComparingTo(BigDecimal("0.0002"))
+        assertThat(CreditRating.A.probabilityOfDefault1y.asDecimal).isEqualByComparingTo(BigDecimal("0.0005"))
+        assertThat(CreditRating.BBB.probabilityOfDefault1y.asDecimal).isEqualByComparingTo(BigDecimal("0.0015"))
+        assertThat(CreditRating.BB.probabilityOfDefault1y.asDecimal).isEqualByComparingTo(BigDecimal("0.0062"))
+        assertThat(CreditRating.B.probabilityOfDefault1y.asDecimal).isEqualByComparingTo(BigDecimal("0.035"))
+        assertThat(CreditRating.CCC.probabilityOfDefault1y.asDecimal).isEqualByComparingTo(BigDecimal("0.27"))
     }
 
     @Test
