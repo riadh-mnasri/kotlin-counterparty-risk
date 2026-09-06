@@ -5,7 +5,7 @@
 [![Build](https://github.com/riadh-mnasri/kotlin-counterparty-risk/actions/workflows/ci.yml/badge.svg)](https://github.com/riadh-mnasri/kotlin-counterparty-risk/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **⚠️ Outil pédagogique et de prototypage, pas un moteur réglementaire.** Les formules, seuils et tables (PD, LGD, décotes) sont volontairement simplifiés et **définis par l'application**, pas issus d'une agence de notation ou d'un texte réglementaire. Ne servez-vous jamais de cette librairie pour un vrai calcul de fonds propres réglementaires ou une décision de risque réelle. Voir la section [Ce que la librairie ne fait pas](#ce-que-la-librairie-ne-fait-pas-encore) pour le détail des simplifications.
+> **⚠️ Outil pédagogique et de prototypage, pas un moteur réglementaire.** Les formules, seuils et tables (PD, LGD, décotes) sont volontairement simplifiés, la table de PD s'inspirant de moyennes publiques d'agence de notation à titre indicatif et le reste étant **défini par l'application** — dans tous les cas, rien de ceci n'est issu d'un texte réglementaire ni utilisable comme tel. Ne servez-vous jamais de cette librairie pour un vrai calcul de fonds propres réglementaires ou une décision de risque réelle. Voir la section [Ce que la librairie ne fait pas](#ce-que-la-librairie-ne-fait-pas-encore) pour le détail des simplifications.
 
 Une librairie Kotlin pour calculer l'exposition au risque de contrepartie (EAD), la perte attendue et une CVA simplifiée sur des opérations de financement sur titres (repos, prêts de titres), avec contrôle de limite de crédit.
 
@@ -23,7 +23,7 @@ Une librairie Kotlin pour calculer l'exposition au risque de contrepartie (EAD),
 
 ## Ce que la librairie ne fait pas (encore)
 
-- Les tables de probabilité de défaut et de décotes sont **définies par l'application**, pas de vraies tables d'agence de notation ou de texte réglementaire (Bâle, CRR...).
+- La table de probabilité de défaut s'inspire des moyennes long terme publiées par S&P Global Ratings (études annuelles « Default, Transition, and Recovery »), à titre indicatif — pas les chiffres exacts d'une étude ni un usage réglementaire. La table de décotes reste, elle, **définie par l'application**, pas issue d'un texte réglementaire (Bâle, CRR...).
 - Pas de CVA multi-période ni de courbe de crédit : c'est une approximation linéaire à un seul point dans le temps.
 - Pas d'exposition simulée dans le temps (PFE/EPE par Monte Carlo), ni d'approche IMM avec multiplicateur alpha : c'est un calcul d'exposition à un instant donné.
 - La perte en cas de défaut (LGD) est un taux fixe de 45% par défaut ; `AssetClass` porte désormais un taux LGD indicatif par classe d'actif, utilisable en le passant explicitement à `computeExpectedLoss`, mais rien ne relie automatiquement l'EAD à un type de collatéral précis.

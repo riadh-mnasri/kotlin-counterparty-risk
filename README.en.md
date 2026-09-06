@@ -5,7 +5,7 @@
 [![Build](https://github.com/riadh-mnasri/kotlin-counterparty-risk/actions/workflows/ci.yml/badge.svg)](https://github.com/riadh-mnasri/kotlin-counterparty-risk/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **⚠️ Teaching and prototyping tool, not a regulatory engine.** The formulas, thresholds and tables (PD, LGD, haircuts) are deliberately simplified and **app-defined**, not sourced from a rating agency or a regulatory text. Never use this library for a real regulatory capital calculation or an actual risk decision. See [What the library does not do](#what-the-library-does-not-do-yet) for the full list of simplifications.
+> **⚠️ Teaching and prototyping tool, not a regulatory engine.** The formulas, thresholds and tables (PD, LGD, haircuts) are deliberately simplified — the PD table is inspired by indicative public rating-agency averages, and the rest is **app-defined** — but none of it is sourced from, or usable as, a regulatory text. Never use this library for a real regulatory capital calculation or an actual risk decision. See [What the library does not do](#what-the-library-does-not-do-yet) for the full list of simplifications.
 
 A Kotlin library for computing counterparty credit risk exposure (EAD), expected loss and a simplified CVA on securities financing transactions (repos, securities lending), with credit limit checking.
 
@@ -23,7 +23,7 @@ A Kotlin library for computing counterparty credit risk exposure (EAD), expected
 
 ## What the library does not do (yet)
 
-- The probability-of-default and haircut tables are **app-defined**, not real rating agency or regulatory (Basel, CRR...) tables.
+- The probability-of-default table is inspired by S&P Global Ratings' published long-run average default rates (annual "Default, Transition, and Recovery" studies), indicative only — not a specific study's exact figures, and not fit for regulatory use. The haircut table remains **app-defined**, not a real regulatory (Basel, CRR...) table.
 - No multi-period CVA or credit curve: this is a single-point-in-time linear approximation.
 - No simulated exposure over time (Monte Carlo PFE/EPE), no IMM approach with an alpha multiplier: this is a point-in-time exposure calculation.
 - Loss Given Default (LGD) defaults to a flat 45% rate; `AssetClass` now carries an indicative LGD per asset class, usable by passing it explicitly to `computeExpectedLoss`, but nothing automatically links EAD to a specific collateral type.
