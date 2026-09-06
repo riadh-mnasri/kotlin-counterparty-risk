@@ -47,7 +47,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.riadh-mnasri:kotlin-counterparty-risk:0.1.0-SNAPSHOT")
+    implementation("io.github.riadh-mnasri:kotlin-counterparty-risk:0.1.0")
 }
 ```
 
