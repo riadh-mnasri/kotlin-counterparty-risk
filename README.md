@@ -26,7 +26,7 @@ Une librairie Kotlin pour calculer l'exposition au risque de contrepartie (EAD),
 - Les tables de probabilité de défaut et de décotes sont **définies par l'application**, pas de vraies tables d'agence de notation ou de texte réglementaire (Bâle, CRR...).
 - Pas de CVA multi-période ni de courbe de crédit : c'est une approximation linéaire à un seul point dans le temps.
 - Pas d'exposition simulée dans le temps (PFE/EPE par Monte Carlo), ni d'approche IMM avec multiplicateur alpha : c'est un calcul d'exposition à un instant donné.
-- La perte en cas de défaut (LGD) est un taux fixe de 45%, pas modélisée par type de collatéral.
+- La perte en cas de défaut (LGD) est un taux fixe de 45% par défaut ; `AssetClass` porte désormais un taux LGD indicatif par classe d'actif, utilisable en le passant explicitement à `computeExpectedLoss`, mais rien ne relie automatiquement l'EAD à un type de collatéral précis.
 
 Ce sont de bons points de départ pour une première contribution, voir [CONTRIBUTING.md](CONTRIBUTING.md).
 

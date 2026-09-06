@@ -26,7 +26,7 @@ A Kotlin library for computing counterparty credit risk exposure (EAD), expected
 - The probability-of-default and haircut tables are **app-defined**, not real rating agency or regulatory (Basel, CRR...) tables.
 - No multi-period CVA or credit curve: this is a single-point-in-time linear approximation.
 - No simulated exposure over time (Monte Carlo PFE/EPE), no IMM approach with an alpha multiplier: this is a point-in-time exposure calculation.
-- Loss Given Default (LGD) is a flat 45% rate, not modeled per collateral type.
+- Loss Given Default (LGD) defaults to a flat 45% rate; `AssetClass` now carries an indicative LGD per asset class, usable by passing it explicitly to `computeExpectedLoss`, but nothing automatically links EAD to a specific collateral type.
 
 These are good starting points for a first contribution, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

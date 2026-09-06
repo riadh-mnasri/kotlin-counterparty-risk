@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Each `AssetClass` now carries an app-defined `lgd` (Loss Given Default) assumption. `computeExpectedLoss` gains an optional `lgd` parameter so callers can vary LGD by collateral quality instead of the flat 45% default.
+
 ## [0.1.0] - 2026-09-07
 
 ### Added

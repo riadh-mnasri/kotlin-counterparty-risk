@@ -16,6 +16,15 @@ class AssetClassTest {
     }
 
     @Test
+    fun `each asset class carries its own loss given default`() {
+        // Given / When / Then
+        assertThat(AssetClass.GOVERNMENT_BOND.lgd.asDecimal).isEqualByComparingTo(BigDecimal("0.05"))
+        assertThat(AssetClass.CORPORATE_BOND.lgd.asDecimal).isEqualByComparingTo(BigDecimal("0.40"))
+        assertThat(AssetClass.EQUITY.lgd.asDecimal).isEqualByComparingTo(BigDecimal("0.60"))
+        assertThat(AssetClass.CASH.lgd.asDecimal).isEqualByComparingTo(BigDecimal.ZERO)
+    }
+
+    @Test
     fun `of is case-insensitive`() {
         // Given / When
         val assetClass = AssetClass.of("equity")
