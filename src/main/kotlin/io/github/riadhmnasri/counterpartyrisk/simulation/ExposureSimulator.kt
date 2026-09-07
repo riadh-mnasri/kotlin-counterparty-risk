@@ -113,41 +113,81 @@ fun simulateExposureProfile(
     assumptions: SimulationAssumptions = SimulationAssumptions(),
 ): ExposureProfile {
     require(horizonYears > BigDecimal.ZERO) { "horizonYears must be positive, got $horizonYears" }
-    val timeStepsPerYear = assumptions.timeStepsPerYear
-    val pathCount = assumptions.pathCount
-    val confidence = assumptions.confidence
-    val random = assumptions.random
-
-    val stepCount = ceil(horizonYears.toDouble() * timeStepsPerYear).toInt().coerceAtLeast(1)
-    val dt = horizonYears.toDouble() / stepCount
+    val timeSteps = TimeSteps.of(horizonYears, assumptions.timeStepsPerYear)
     val sigma = volatility.asDecimal.toDouble()
-    val s0 = initialExposure.amount.toDouble()
+    val paths = simulateGbmPaths(initialExposure.amount.toDouble(), sigma, timeSteps, assumptions)
 
-    val paths =
-        Array(pathCount) { path ->
-            DoubleArray(stepCount + 1).also { values ->
-                values[0] = s0
-                for (step in 1..stepCount) {
-                    val z = random.nextGaussian()
-                    val drift = -GBM_ITO_CORRECTION * sigma * sigma * dt
-                    val diffusion = sigma * sqrt(dt) * z
-                    values[step] = values[step - 1] * exp(drift + diffusion)
-                }
+    val flooredAtZero =
+        Array(assumptions.pathCount) { path ->
+            DoubleArray(timeSteps.stepCount + 1) { step -> maxOf(paths[path][step], ZERO_EXPOSURE_FLOOR) }
+        }
+    return aggregateProfile(flooredAtZero, timeSteps, assumptions.confidence, initialExposure.currency)
+}
+
+/** How the simulated horizon is discretized: [stepCount] equal steps of [dt] years each. */
+internal data class TimeSteps(val dt: Double, val stepCount: Int) {
+    companion object {
+        fun of(
+            horizonYears: BigDecimal,
+            timeStepsPerYear: Int,
+        ): TimeSteps {
+            val stepCount = ceil(horizonYears.toDouble() * timeStepsPerYear).toInt().coerceAtLeast(1)
+            return TimeSteps(dt = horizonYears.toDouble() / stepCount, stepCount = stepCount)
+        }
+    }
+}
+
+/**
+ * Simulates [SimulationAssumptions.pathCount] independent driftless GBM
+ * paths for a single risk factor starting at [s0] with annualized
+ * [sigma], using the exact log-normal step (see [simulateExposureProfile]'s
+ * KDoc for the formula). Shared by every simulation entry point in this
+ * file; what each does with the resulting paths (float them at zero
+ * directly, or run them through a collateral re-margining rule first)
+ * differs.
+ */
+internal fun simulateGbmPaths(
+    s0: Double,
+    sigma: Double,
+    timeSteps: TimeSteps,
+    assumptions: SimulationAssumptions,
+): Array<DoubleArray> =
+    Array(assumptions.pathCount) {
+        DoubleArray(timeSteps.stepCount + 1).also { values ->
+            values[0] = s0
+            for (step in 1..timeSteps.stepCount) {
+                val z = assumptions.random.nextGaussian()
+                val drift = -GBM_ITO_CORRECTION * sigma * sigma * timeSteps.dt
+                val diffusion = sigma * sqrt(timeSteps.dt) * z
+                values[step] = values[step - 1] * exp(drift + diffusion)
             }
         }
+    }
 
+/**
+ * Turns per-path, per-step values (already floored at zero, i.e. ready
+ * to treat as "net exposure") into an [ExposureProfile]: EPE and PFE at
+ * each time step, across all paths.
+ */
+internal fun aggregateProfile(
+    netExposureByPathAndStep: Array<DoubleArray>,
+    timeSteps: TimeSteps,
+    confidence: Rate,
+    currency: Currency,
+): ExposureProfile {
+    val pathCount = netExposureByPathAndStep.size
     val points =
-        (0..stepCount).map { step ->
-            val exposuresAtStep = (0 until pathCount).map { path -> maxOf(paths[path][step], ZERO_EXPOSURE_FLOOR) }
-            val pfeAtStep = quantile(exposuresAtStep, confidence.asDecimal.toDouble())
+        (0..timeSteps.stepCount).map { step ->
+            val valuesAtStep = (0 until pathCount).map { path -> netExposureByPathAndStep[path][step] }
+            val pfeAtStep = quantile(valuesAtStep, confidence.asDecimal.toDouble())
             ExposureProfilePoint(
-                timeYears = BigDecimal.valueOf(step * dt),
-                epe = Money(BigDecimal.valueOf(exposuresAtStep.average()), initialExposure.currency),
-                pfe = Money(BigDecimal.valueOf(pfeAtStep), initialExposure.currency),
+                timeYears = BigDecimal.valueOf(step * timeSteps.dt),
+                epe = Money(BigDecimal.valueOf(valuesAtStep.average()), currency),
+                pfe = Money(BigDecimal.valueOf(pfeAtStep), currency),
             )
         }
 
-    return ExposureProfile(points, confidence, initialExposure.currency)
+    return ExposureProfile(points, confidence, currency)
 }
 
 private fun quantile(
