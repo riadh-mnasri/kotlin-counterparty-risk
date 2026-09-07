@@ -18,12 +18,19 @@ private const val DEFAULT_PERIODS_PER_YEAR = 4
  * controls how finely the horizon is sliced (see [computeMultiPeriodCva]);
  * it does not change the undiscounted result. [lgd] defaults to the same
  * flat [LOSS_GIVEN_DEFAULT] as [computeCva], exposed here for consistency
- * with the `lgd` parameter on `computeExpectedLoss`.
+ * with the `lgd` parameter on `computeExpectedLoss`. [cumulativeProbabilityOfDefault]
+ * defaults to `null`, meaning [computeMultiPeriodCva] builds a flat
+ * [CreditCurve] from the counterparty's 1-year PD exactly as before; pass
+ * your own function (e.g. a [PiecewiseCreditCurve]'s
+ * `::cumulativeProbabilityOfDefault`, or any curve you build yourself) to
+ * use a different term structure without changing `computeMultiPeriodCva`
+ * itself.
  */
 data class CvaAssumptions(
     val discountRate: Rate = Rate.ofDecimal(BigDecimal.ZERO),
     val periodsPerYear: Int = DEFAULT_PERIODS_PER_YEAR,
     val lgd: Rate = LOSS_GIVEN_DEFAULT,
+    val cumulativeProbabilityOfDefault: ((BigDecimal) -> BigDecimal)? = null,
 ) {
     init {
         require(periodsPerYear > 0) { "periodsPerYear must be positive, got $periodsPerYear" }
@@ -64,10 +71,14 @@ fun computeMultiPeriodCva(
     require(nettingSet.transactions.isNotEmpty()) {
         "Cannot compute a CVA horizon for a netting set with no transactions"
     }
-    val (discountRate, periodsPerYear, lgd) = assumptions
+    val discountRate = assumptions.discountRate
+    val periodsPerYear = assumptions.periodsPerYear
+    val lgd = assumptions.lgd
+    val cumulativePd =
+        assumptions.cumulativeProbabilityOfDefault
+            ?: CreditCurve(counterparty.rating.probabilityOfDefault1y)::cumulativeProbabilityOfDefault
 
     val maturityYears = nettingSet.transactions.maxOf { it.remainingTenorYears() }
-    val curve = CreditCurve(counterparty.rating.probabilityOfDefault1y)
     val periodCount = ceil(maturityYears.toDouble() * periodsPerYear).toInt().coerceAtLeast(1)
     val periodLength = maturityYears.divide(BigDecimal(periodCount), MathContext.DECIMAL64)
 
@@ -75,9 +86,7 @@ fun computeMultiPeriodCva(
         (1..periodCount).map { period ->
             val periodStart = periodLength.multiply(BigDecimal(period - 1))
             val periodEnd = periodLength.multiply(BigDecimal(period))
-            val marginalPd =
-                curve.cumulativeProbabilityOfDefault(periodEnd)
-                    .subtract(curve.cumulativeProbabilityOfDefault(periodStart))
+            val marginalPd = cumulativePd(periodEnd).subtract(cumulativePd(periodStart))
             val discountFactor = discountFactorFor(periodEnd, discountRate)
 
             ead.multiply(marginalPd).multiply(lgd.asDecimal).multiply(discountFactor)
