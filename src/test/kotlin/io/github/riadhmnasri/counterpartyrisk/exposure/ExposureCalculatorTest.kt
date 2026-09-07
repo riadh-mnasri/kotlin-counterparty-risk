@@ -6,7 +6,9 @@ import io.github.riadhmnasri.counterpartyrisk.entity.SftTransaction
 import io.github.riadhmnasri.counterpartyrisk.entity.SftTransactionKind
 import io.github.riadhmnasri.counterpartyrisk.model.AssetClass
 import io.github.riadhmnasri.counterpartyrisk.model.Currency
+import io.github.riadhmnasri.counterpartyrisk.model.FxHaircutTable
 import io.github.riadhmnasri.counterpartyrisk.model.Money
+import io.github.riadhmnasri.counterpartyrisk.model.Rate
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -99,5 +101,34 @@ class ExposureCalculatorTest {
 
         // Then: (100,000 - 100,000) + 0 (cash haircut) + 8,000 (FX haircut) = 8,000
         assertThat(result.eStar.amount).isEqualByComparingTo(BigDecimal("8000.00"))
+    }
+
+    @Test
+    fun `a per-pair fx haircut table is honored instead of the flat default`() {
+        // Given: same currency mismatch as above, but EUR-USD is listed at 2 percent
+        val transaction =
+            SftTransaction(
+                id = "sft-1",
+                kind = SftTransactionKind.REPO,
+                exposureAmount = Money(BigDecimal("100000"), usd),
+                exposureCurrency = usd,
+                exposureAssetClass = AssetClass.CASH,
+                remainingTenorDays = 30,
+                collateral = listOf(CollateralPosition(Money(BigDecimal("100000"), usd), AssetClass.CASH, eur)),
+            )
+        val nettingSet =
+            NettingSet(
+                id = "ns-1",
+                counterpartyId = "cp-1",
+                reportingCurrency = usd,
+                transactions = listOf(transaction),
+            )
+        val fxHaircutTable = FxHaircutTable(ratesByPair = mapOf((eur to usd) to Rate.ofPercentage(2.0)))
+
+        // When
+        val result = computeExposure(nettingSet, fxHaircutTable)
+
+        // Then: (100,000 - 100,000) + 0 (cash haircut) + 2,000 (2% FX haircut) = 2,000
+        assertThat(result.eStar.amount).isEqualByComparingTo(BigDecimal("2000.00"))
     }
 }

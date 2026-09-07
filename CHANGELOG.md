@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `FxHaircutTable`, a per-currency-pair FX haircut lookup (app-defined, symmetric, with a fallback for unlisted pairs), usable via a new optional parameter on `CollateralPosition.fxHaircutAddOn` and `computeExposure`. Defaults to `FxHaircutTable.FLAT` (the existing flat 8% rate), so existing callers see no behavior change.
 - `simulateExposureProfile`, a new Monte Carlo simulation module (`simulation` package) alongside the existing point-in-time calculators: simulates net exposure as a driftless geometric Brownian motion across many paths, producing an `ExposureProfile` of EPE and PFE per time step, plus `effectiveExpectedPositiveExposure()` (a Basel-style non-decreasing envelope) and `immExposureAtDefault(alpha)` (an IMM-style exposure at default, alpha defaulting to Basel's 1.4). Configured via `SimulationAssumptions` (time granularity, path count, confidence level, random source — seeded by default for reproducibility).
 - `computeMultiPeriodCva`, a new calculation path alongside the existing single-period `computeCva`: discretizes the horizon into periods (default quarterly) using a new `CreditCurve` (a flat-hazard-rate PD term structure extrapolated from the 1-year PD) and an optional discount rate, both configurable via `CvaAssumptions`.
 

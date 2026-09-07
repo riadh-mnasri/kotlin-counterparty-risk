@@ -2,7 +2,7 @@ package io.github.riadhmnasri.counterpartyrisk.entity
 
 import io.github.riadhmnasri.counterpartyrisk.model.AssetClass
 import io.github.riadhmnasri.counterpartyrisk.model.Currency
-import io.github.riadhmnasri.counterpartyrisk.model.FX_HAIRCUT
+import io.github.riadhmnasri.counterpartyrisk.model.FxHaircutTable
 import io.github.riadhmnasri.counterpartyrisk.model.Money
 import java.math.BigDecimal
 
@@ -21,9 +21,12 @@ data class CollateralPosition(
 
     fun isCurrencyMismatchedWith(exposureCurrency: Currency): Boolean = currency != exposureCurrency
 
-    fun fxHaircutAddOn(exposureCurrency: Currency): Money =
+    fun fxHaircutAddOn(
+        exposureCurrency: Currency,
+        table: FxHaircutTable = FxHaircutTable.FLAT,
+    ): Money =
         if (isCurrencyMismatchedWith(exposureCurrency)) {
-            FX_HAIRCUT.applyTo(marketValue)
+            table.rateFor(currency, exposureCurrency).applyTo(marketValue)
         } else {
             Money.zero(marketValue.currency)
         }

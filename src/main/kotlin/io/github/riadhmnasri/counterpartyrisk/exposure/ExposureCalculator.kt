@@ -1,6 +1,7 @@
 package io.github.riadhmnasri.counterpartyrisk.exposure
 
 import io.github.riadhmnasri.counterpartyrisk.entity.NettingSet
+import io.github.riadhmnasri.counterpartyrisk.model.FxHaircutTable
 import io.github.riadhmnasri.counterpartyrisk.model.Money
 
 /**
@@ -8,8 +9,14 @@ import io.github.riadhmnasri.counterpartyrisk.model.Money
  * Basel "comprehensive approach with supervisory haircuts" for SFTs:
  *
  * `E* = max(0, (sum of exposures - sum of collateral) + security haircut add-ons + FX haircut add-ons)`
+ *
+ * [fxHaircutTable] defaults to a single flat rate ([FxHaircutTable.FLAT]);
+ * pass your own to vary the FX haircut by currency pair instead.
  */
-fun computeExposure(nettingSet: NettingSet): ExposureResult {
+fun computeExposure(
+    nettingSet: NettingSet,
+    fxHaircutTable: FxHaircutTable = FxHaircutTable.FLAT,
+): ExposureResult {
     val currency = nettingSet.reportingCurrency
 
     var sumExposure = Money.zero(currency)
@@ -23,7 +30,7 @@ fun computeExposure(nettingSet: NettingSet): ExposureResult {
         for (position in transaction.collateral) {
             sumCollateral = sumCollateral.add(position.marketValue)
             haircutAddOns = haircutAddOns.add(position.securityHaircutAddOn())
-            haircutAddOns = haircutAddOns.add(position.fxHaircutAddOn(transaction.exposureCurrency))
+            haircutAddOns = haircutAddOns.add(position.fxHaircutAddOn(transaction.exposureCurrency, fxHaircutTable))
         }
     }
 

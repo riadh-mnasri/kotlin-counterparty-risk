@@ -28,6 +28,7 @@ Une librairie Kotlin pour calculer l'exposition au risque de contrepartie (EAD),
 - La CVA multi-période (`computeMultiPeriodCva`) existe, avec une courbe de crédit simplifiée (`CreditCurve`, taux de hasard constant extrapolé depuis la seule PD à 1 an) — pas une vraie courbe multi-échéances de marché ou d'agence.
 - L'exposition simulée dans le temps (`simulateExposureProfile`) existe (PFE/EPE par Monte Carlo, EPE effective, exposition IMM avec multiplicateur alpha), mais reste un seul facteur de risque brownien sans dérive, sans remargining du collatéral, sans changement de composition du netting set dans le temps, et sans corrélation multi-facteurs — pas un vrai moteur IMM.
 - La perte en cas de défaut (LGD) est un taux fixe de 45% par défaut ; `AssetClass` porte désormais un taux LGD indicatif par classe d'actif, utilisable en le passant explicitement à `computeExpectedLoss`, mais rien ne relie automatiquement l'EAD à un type de collatéral précis.
+- La décote FX est un taux fixe de 8% par défaut (`FxHaircutTable.FLAT`) ; une table `FxHaircutTable` par paire de devises existe désormais et peut être passée à `computeExposure`, mais reste, elle aussi, définie par l'application.
 
 Ce sont de bons points de départ pour une première contribution, voir [CONTRIBUTING.md](CONTRIBUTING.md).
 
