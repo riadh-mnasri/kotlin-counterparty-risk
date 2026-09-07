@@ -113,6 +113,44 @@ class MultiPeriodCvaTest {
     }
 
     @Test
+    fun `a custom cumulative PD function overrides the default flat-hazard curve`() {
+        // Given: a curve that always returns a zero PD
+        val oneYear = nettingSet(remainingTenorDays = 365)
+        val zeroPdAssumptions = CvaAssumptions(cumulativeProbabilityOfDefault = { BigDecimal.ZERO })
+
+        // When
+        val cva = computeMultiPeriodCva(counterparty, oneYear, ead, zeroPdAssumptions)
+
+        // Then
+        assertThat(cva.amount).isCloseTo(BigDecimal.ZERO, Offset.offset(BigDecimal("0.0001")))
+    }
+
+    @Test
+    fun `a custom PiecewiseCreditCurve is honored the same way the default CreditCurve is`() {
+        // Given: a 3 year netting set and an explicit two-point curve
+        val threeYears = nettingSet(remainingTenorDays = 1095)
+        val curve =
+            PiecewiseCreditCurve(
+                listOf(
+                    CreditCurvePoint(BigDecimal.ONE, BigDecimal("0.02")),
+                    CreditCurvePoint(BigDecimal("3"), BigDecimal("0.08")),
+                ),
+            )
+        val assumptions =
+            CvaAssumptions(
+                discountRate = Rate.ofDecimal(BigDecimal.ZERO),
+                cumulativeProbabilityOfDefault = curve::cumulativeProbabilityOfDefault,
+            )
+
+        // When
+        val cva = computeMultiPeriodCva(counterparty, threeYears, ead, assumptions)
+
+        // Then: undiscounted, marginal PDs telescope to the curve's cumulative PD at maturity (8%)
+        val expected = ead.amount.multiply(BigDecimal("0.08")).multiply(LOSS_GIVEN_DEFAULT.asDecimal)
+        assertThat(cva.amount).isCloseTo(expected, Percentage.withPercentage(0.01))
+    }
+
+    @Test
     fun `a netting set with no transactions cannot produce a CVA horizon`() {
         // Given
         val emptyNettingSet =
