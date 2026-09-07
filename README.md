@@ -19,13 +19,14 @@ Une librairie Kotlin pour calculer l'exposition au risque de contrepartie (EAD),
 - **Perte attendue (Expected Loss)** : `EL = PD × LGD × EAD`.
 - **CVA simplifiée** : approximation linéaire mono-période à partir de l'EAD, de la PD, de la LGD et de la maturité restante, ou **CVA multi-période** en découpant l'horizon en périodes via une courbe de PD à taux de hasard constant, avec actualisation optionnelle.
 - **Contrôle de limite de crédit** : statut OK / WARNING (80% de la limite) / BREACH.
-- Arithmétique en `BigDecimal` de bout en bout (pas de `Double`), choix délibéré pour une librairie financière.
+- **Profil d'exposition simulé (PFE/EPE)** : simulation Monte Carlo (mouvement brownien géométrique sans dérive) de l'exposition dans le temps, EPE et PFE par pas de temps, EPE effective et exposition IMM (`alpha x EPE effective`).
+- Arithmétique en `BigDecimal` pour tous les montants et taux (`Money`, `Rate`), choix délibéré pour une librairie financière ; `Double` n'apparaît qu'en interne pour les calculs transcendants sans équivalent `BigDecimal` natif (puissance à exposant fractionnaire dans `CreditCurve`, tirages aléatoires gaussiens dans la simulation Monte Carlo), toujours reconverti en `BigDecimal` immédiatement.
 
 ## Ce que la librairie ne fait pas (encore)
 
 - La table de probabilité de défaut s'inspire des moyennes long terme publiées par S&P Global Ratings (études annuelles « Default, Transition, and Recovery »), à titre indicatif — pas les chiffres exacts d'une étude ni un usage réglementaire. La table de décotes reste, elle, **définie par l'application**, pas issue d'un texte réglementaire (Bâle, CRR...).
-- La CVA multi-période (`computeMultiPeriodCva`) existe, avec une courbe de crédit simplifiée (`CreditCurve`, taux de hasard constant extrapolé depuis la seule PD à 1 an) — pas une vraie courbe multi-échéances de marché ou d'agence, ni un vrai profil d'exposition dans le temps.
-- Pas d'exposition simulée dans le temps (PFE/EPE par Monte Carlo), ni d'approche IMM avec multiplicateur alpha : c'est un calcul d'exposition à un instant donné.
+- La CVA multi-période (`computeMultiPeriodCva`) existe, avec une courbe de crédit simplifiée (`CreditCurve`, taux de hasard constant extrapolé depuis la seule PD à 1 an) — pas une vraie courbe multi-échéances de marché ou d'agence.
+- L'exposition simulée dans le temps (`simulateExposureProfile`) existe (PFE/EPE par Monte Carlo, EPE effective, exposition IMM avec multiplicateur alpha), mais reste un seul facteur de risque brownien sans dérive, sans remargining du collatéral, sans changement de composition du netting set dans le temps, et sans corrélation multi-facteurs — pas un vrai moteur IMM.
 - La perte en cas de défaut (LGD) est un taux fixe de 45% par défaut ; `AssetClass` porte désormais un taux LGD indicatif par classe d'actif, utilisable en le passant explicitement à `computeExpectedLoss`, mais rien ne relie automatiquement l'EAD à un type de collatéral précis.
 
 Ce sont de bons points de départ pour une première contribution, voir [CONTRIBUTING.md](CONTRIBUTING.md).
