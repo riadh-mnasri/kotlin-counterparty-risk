@@ -2,7 +2,9 @@ package io.github.riadhmnasri.counterpartyrisk.entity
 
 import io.github.riadhmnasri.counterpartyrisk.model.AssetClass
 import io.github.riadhmnasri.counterpartyrisk.model.Currency
+import io.github.riadhmnasri.counterpartyrisk.model.FxHaircutTable
 import io.github.riadhmnasri.counterpartyrisk.model.Money
+import io.github.riadhmnasri.counterpartyrisk.model.Rate
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import org.junit.jupiter.api.Test
@@ -46,6 +48,19 @@ class CollateralPositionTest {
 
         // Then
         assertThat(addOn.amount).isEqualByComparingTo(BigDecimal.ZERO)
+    }
+
+    @Test
+    fun `a per-pair fx haircut table overrides the flat default when provided`() {
+        // Given: EUR-USD is listed at a lower rate than the flat 8 percent default
+        val position = CollateralPosition(Money(BigDecimal("1000"), eur), AssetClass.CASH, eur)
+        val table = FxHaircutTable(ratesByPair = mapOf((eur to usd) to Rate.ofPercentage(2.0)))
+
+        // When
+        val addOn = position.fxHaircutAddOn(exposureCurrency = usd, table = table)
+
+        // Then
+        assertThat(addOn.amount).isEqualByComparingTo(BigDecimal("20.00"))
     }
 
     @Test

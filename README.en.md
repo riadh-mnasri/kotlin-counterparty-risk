@@ -28,6 +28,7 @@ A Kotlin library for computing counterparty credit risk exposure (EAD), expected
 - Multi-period CVA (`computeMultiPeriodCva`) exists, with a simplified credit curve (`CreditCurve`, a flat hazard rate extrapolated from the single 1-year PD) — not a real market- or agency-published multi-tenor curve.
 - Simulated exposure over time (`simulateExposureProfile`) exists (Monte Carlo PFE/EPE, effective EPE, an IMM-style exposure at default with an alpha multiplier), but remains a single driftless Brownian risk factor, with no collateral re-margining, no netting set composition changes over time, and no multi-factor correlation — not a real IMM engine.
 - Loss Given Default (LGD) defaults to a flat 45% rate; `AssetClass` now carries an indicative LGD per asset class, usable by passing it explicitly to `computeExpectedLoss`, but nothing automatically links EAD to a specific collateral type.
+- The FX haircut defaults to a flat 8% rate (`FxHaircutTable.FLAT`); a per-currency-pair `FxHaircutTable` now exists and can be passed to `computeExposure`, but remains app-defined too.
 
 These are good starting points for a first contribution, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
