@@ -17,14 +17,14 @@ A Kotlin library for computing counterparty credit risk exposure (EAD), expected
 
 - **Exposure calculation (EAD)** via a simplified version of the Basel "comprehensive approach with supervisory haircuts" for SFTs (repos, securities lending).
 - **Expected Loss**: `EL = PD × LGD × EAD`.
-- **Simplified CVA**: a single-period linear approximation from EAD, PD, LGD and the remaining maturity.
+- **Simplified CVA**: a single-period linear approximation from EAD, PD, LGD and the remaining maturity, or **multi-period CVA** discretizing the horizon via a flat-hazard-rate PD curve, with optional discounting.
 - **Credit limit checking**: OK / WARNING (80% of the limit) / BREACH status.
 - `BigDecimal` arithmetic throughout (no `Double`), a deliberate choice for a finance library.
 
 ## What the library does not do (yet)
 
 - The probability-of-default table is inspired by S&P Global Ratings' published long-run average default rates (annual "Default, Transition, and Recovery" studies), indicative only — not a specific study's exact figures, and not fit for regulatory use. The haircut table remains **app-defined**, not a real regulatory (Basel, CRR...) table.
-- No multi-period CVA or credit curve: this is a single-point-in-time linear approximation.
+- Multi-period CVA (`computeMultiPeriodCva`) exists, with a simplified credit curve (`CreditCurve`, a flat hazard rate extrapolated from the single 1-year PD) — not a real market- or agency-published multi-tenor curve, nor a real exposure profile over time.
 - No simulated exposure over time (Monte Carlo PFE/EPE), no IMM approach with an alpha multiplier: this is a point-in-time exposure calculation.
 - Loss Given Default (LGD) defaults to a flat 45% rate; `AssetClass` now carries an indicative LGD per asset class, usable by passing it explicitly to `computeExpectedLoss`, but nothing automatically links EAD to a specific collateral type.
 

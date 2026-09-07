@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `computeMultiPeriodCva`, a new calculation path alongside the existing single-period `computeCva`: discretizes the horizon into periods (default quarterly) using a new `CreditCurve` (a flat-hazard-rate PD term structure extrapolated from the 1-year PD) and an optional discount rate, both configurable via `CvaAssumptions`.
+
 ### Changed
 
 - `CreditRating`'s 1-year probability-of-default table is now inspired by S&P Global Ratings' published long-run average default rates by rating category, instead of arbitrary app-defined figures (still indicative only, see the README disclaimer). Values changed: AAA 0.01% → 0.00%, BB 1.0% → 0.62%, B 3.0% → 3.5%, CCC 8.0% → 27.0%. AA, A, BBB and D are unchanged.
