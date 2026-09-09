@@ -1,6 +1,8 @@
 package io.github.riadhmnasri.counterpartyrisk.simulation
 
 import io.github.riadhmnasri.counterpartyrisk.model.AssetClass
+import io.github.riadhmnasri.counterpartyrisk.model.Currency
+import io.github.riadhmnasri.counterpartyrisk.model.FxHaircutTable
 import io.github.riadhmnasri.counterpartyrisk.model.Money
 import io.github.riadhmnasri.counterpartyrisk.model.Rate
 import java.math.BigDecimal
@@ -37,6 +39,14 @@ private const val ZERO_EXPOSURE_FLOOR = 0.0
  * exact same random draw sequence as before it existed). Set it to also
  * mark collateral held to market every simulated step, correlated with
  * the exposure path — see [CorrelatedCollateralRiskFactor].
+ *
+ * [collateralCurrency] defaults to `null`, meaning no FX mismatch (same
+ * as it matching the exposure's own currency). Set it to a different
+ * currency to also apply an FX haircut (from [fxHaircutTable]) to every
+ * margin call, on top of any [collateralAssetClass] security haircut —
+ * the two combine additively (`securityHaircut + fxHaircut`), the same
+ * way [io.github.riadhmnasri.counterpartyrisk.exposure.computeExposure]
+ * already sums both add-ons for [io.github.riadhmnasri.counterpartyrisk.entity.CollateralPosition].
  */
 data class CollateralAgreement(
     val threshold: Money,
@@ -44,6 +54,8 @@ data class CollateralAgreement(
     val marginingStepsPerYear: Int? = null,
     val collateralAssetClass: AssetClass? = null,
     val collateralRiskFactor: CorrelatedCollateralRiskFactor? = null,
+    val collateralCurrency: Currency? = null,
+    val fxHaircutTable: FxHaircutTable = FxHaircutTable.FLAT,
 ) {
     init {
         require(threshold.amount >= BigDecimal.ZERO) { "Collateral agreement threshold cannot be negative" }
@@ -106,11 +118,11 @@ data class CorrelatedCollateralRiskFactor(
  * (`max(exposure - collateralHeld, 0)`).
  *
  * A margining frequency different from the simulation's own time step,
- * an [AssetClass] security haircut on the collateral posted (see
- * [CollateralAgreement.collateralAssetClass]), and a second, correlated
+ * an [AssetClass] security haircut and an FX haircut on the collateral
+ * posted (see [CollateralAgreement.collateralAssetClass] and
+ * [CollateralAgreement.collateralCurrency]), and a second, correlated
  * risk factor for collateral value between margining events (see
- * [CollateralAgreement.collateralRiskFactor]) are all supported; not
- * modeled: FX on the collateral posted.
+ * [CollateralAgreement.collateralRiskFactor]) are all supported.
  */
 fun simulateExposureProfileWithCollateral(
     initialExposure: Money,
@@ -148,8 +160,9 @@ fun simulateExposureProfileWithCollateral(
     }
     val threshold = collateralAgreement.threshold.amount.toDouble()
     val minimumTransferAmount = collateralAgreement.minimumTransferAmount.amount.toDouble()
-    val collateralHaircut = collateralAgreement.collateralAssetClass?.haircut?.asDecimal?.toDouble() ?: 0.0
-    val collateralRecognitionRate = 1.0 - collateralHaircut
+    val securityHaircut = collateralAgreement.collateralAssetClass?.haircut?.asDecimal?.toDouble() ?: 0.0
+    val fxHaircut = fxHaircut(collateralAgreement, initialExposure.currency)
+    val collateralRecognitionRate = 1.0 - securityHaircut - fxHaircut
 
     val netExposureAfterMargin =
         Array(assumptions.pathCount) { path ->
@@ -177,6 +190,22 @@ fun simulateExposureProfileWithCollateral(
         }
 
     return aggregateProfile(netExposureAfterMargin, timeSteps, assumptions.confidence, initialExposure.currency)
+}
+
+/**
+ * The FX haircut rate to apply, or 0.0 if
+ * [CollateralAgreement.collateralCurrency] is unset or matches [exposureCurrency].
+ */
+private fun fxHaircut(
+    collateralAgreement: CollateralAgreement,
+    exposureCurrency: Currency,
+): Double {
+    val collateralCurrency = collateralAgreement.collateralCurrency
+    return if (collateralCurrency == null || collateralCurrency == exposureCurrency) {
+        0.0
+    } else {
+        collateralAgreement.fxHaircutTable.rateFor(collateralCurrency, exposureCurrency).asDecimal.toDouble()
+    }
 }
 
 /**

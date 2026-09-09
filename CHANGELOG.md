@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `CollateralAgreement.collateralCurrency` and `fxHaircutTable`: an FX haircut can now be applied to margin calls in `simulateExposureProfileWithCollateral` when the posted collateral's currency differs from the exposure's, combining additively with any `collateralAssetClass` security haircut (same convention as `computeExposure`). Defaults to `null` (no FX mismatch, unchanged behavior).
 - `checkRiskLimit` gains an optional `warningThreshold: Rate` parameter, defaulting to the existing 80% `WARNING_THRESHOLD` so existing callers see no behavior change.
 - `CollateralAgreement.collateralRiskFactor` (a new `CorrelatedCollateralRiskFactor`): collateral held can now also be marked to market every simulated step via a second GBM risk factor, correlated with the exposure path (Cholesky-decomposed correlated draws), before that step's margining check. Defaults to `null` (collateral held only changes via margin calls/returns, unchanged behavior and RNG draw sequence). New shared internal helper `simulateCorrelatedGbmPathPair` in `ExposureSimulator.kt`.
 - `CollateralAgreement.collateralAssetClass`, applying that asset class's `AssetClass.haircut` to margin calls in `simulateExposureProfileWithCollateral`: only `callAmount x (1 - haircut)` of effective value is recognized per call, mirroring how `computeExposure` already treats haircuts. Defaults to `null` (no haircut, unchanged behavior). Returns are not haircut-adjusted.

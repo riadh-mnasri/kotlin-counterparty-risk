@@ -2,6 +2,7 @@ package io.github.riadhmnasri.counterpartyrisk.simulation
 
 import io.github.riadhmnasri.counterpartyrisk.model.AssetClass
 import io.github.riadhmnasri.counterpartyrisk.model.Currency
+import io.github.riadhmnasri.counterpartyrisk.model.FxHaircutTable
 import io.github.riadhmnasri.counterpartyrisk.model.Money
 import io.github.riadhmnasri.counterpartyrisk.model.Rate
 import org.assertj.core.api.Assertions.assertThat
@@ -346,6 +347,119 @@ class CollateralRemarginingSimulatorTest {
         // Given / When / Then
         assertThatIllegalArgumentException().isThrownBy {
             CorrelatedCollateralRiskFactor(Rate.ofPercentage(20.0), BigDecimal("1.5"))
+        }
+    }
+
+    @Test
+    fun `a mismatched collateral currency leaves more residual net exposure than no FX mismatch`() {
+        // Given: two independent Random instances seeded identically; a
+        // nonzero threshold and zero MTA so margin calls happen and are
+        // fully acted on
+        val eur = Currency("EUR")
+        val threshold = Money(BigDecimal("2000"), usd)
+        val volatility = Rate.ofPercentage(40.0)
+        val seed = 88L
+
+        // When
+        val noFxMismatch =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(threshold = threshold, minimumTransferAmount = Money.zero(usd)),
+                SimulationAssumptions(pathCount = 500, random = java.util.Random(seed)),
+            )
+        val withFxMismatch =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(
+                    threshold = threshold,
+                    minimumTransferAmount = Money.zero(usd),
+                    collateralCurrency = eur,
+                ),
+                SimulationAssumptions(pathCount = 500, random = java.util.Random(seed)),
+            )
+
+        // Then: the FX haircut means the same calls cover less of the gap
+        noFxMismatch.points.zip(withFxMismatch.points).forEach { (noMismatch, mismatch) ->
+            assertThat(mismatch.epe.amount).isGreaterThanOrEqualTo(noMismatch.epe.amount)
+        }
+    }
+
+    @Test
+    fun `a collateral currency matching the exposure currency has no FX haircut effect`() {
+        // Given: two independent Random instances seeded identically
+        val threshold = Money(BigDecimal("2000"), usd)
+        val volatility = Rate.ofPercentage(30.0)
+        val seed = 66L
+
+        // When
+        val implicitDefault =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(threshold = threshold),
+                SimulationAssumptions(pathCount = 300, random = java.util.Random(seed)),
+            )
+        val explicitSameCurrency =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(threshold = threshold, collateralCurrency = usd),
+                SimulationAssumptions(pathCount = 300, random = java.util.Random(seed)),
+            )
+
+        // Then
+        implicitDefault.points.zip(explicitSameCurrency.points).forEach { (a, b) ->
+            assertThat(a.epe.amount).isCloseTo(b.epe.amount, Offset.offset(BigDecimal("0.0001")))
+        }
+    }
+
+    @Test
+    fun `security and FX haircuts combine additively, same as computeExposure`() {
+        // Given: two independent Random instances seeded identically. A
+        // combined 15 percent (equity) + 8 percent (flat FX) haircut should
+        // leave the same residual as a single custom 23 percent FX-only entry
+        val eur = Currency("EUR")
+        val threshold = Money(BigDecimal("2000"), usd)
+        val volatility = Rate.ofPercentage(35.0)
+        val seed = 13L
+
+        // When
+        val securityPlusFx =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(
+                    threshold = threshold,
+                    minimumTransferAmount = Money.zero(usd),
+                    collateralAssetClass = AssetClass.EQUITY,
+                    collateralCurrency = eur,
+                ),
+                SimulationAssumptions(pathCount = 500, random = java.util.Random(seed)),
+            )
+        val combinedFlatRate =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(
+                    threshold = threshold,
+                    minimumTransferAmount = Money.zero(usd),
+                    collateralCurrency = eur,
+                    fxHaircutTable = FxHaircutTable(fallback = Rate.ofPercentage(23.0)),
+                ),
+                SimulationAssumptions(pathCount = 500, random = java.util.Random(seed)),
+            )
+
+        // Then
+        securityPlusFx.points.zip(combinedFlatRate.points).forEach { (a, b) ->
+            assertThat(a.epe.amount).isCloseTo(b.epe.amount, Offset.offset(BigDecimal("0.01")))
         }
     }
 
