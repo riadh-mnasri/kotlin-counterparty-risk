@@ -31,12 +31,19 @@ private const val ZERO_EXPOSURE_FLOOR = 0.0
  * already treats a haircut as reducing collateral's effective coverage.
  * Returns are not haircut-adjusted (giving back already-discounted
  * effective value is symmetric regardless of asset class).
+ *
+ * [collateralRiskFactor] defaults to `null`, meaning collateral held only
+ * ever changes via margin calls/returns (the original behavior, and the
+ * exact same random draw sequence as before it existed). Set it to also
+ * mark collateral held to market every simulated step, correlated with
+ * the exposure path — see [CorrelatedCollateralRiskFactor].
  */
 data class CollateralAgreement(
     val threshold: Money,
     val minimumTransferAmount: Money = Money.zero(threshold.currency),
     val marginingStepsPerYear: Int? = null,
     val collateralAssetClass: AssetClass? = null,
+    val collateralRiskFactor: CorrelatedCollateralRiskFactor? = null,
 ) {
     init {
         require(threshold.amount >= BigDecimal.ZERO) { "Collateral agreement threshold cannot be negative" }
@@ -47,6 +54,34 @@ data class CollateralAgreement(
         }
         require(marginingStepsPerYear == null || marginingStepsPerYear > 0) {
             "marginingStepsPerYear must be positive, got $marginingStepsPerYear"
+        }
+    }
+}
+
+/**
+ * A second GBM risk factor for the *value* of collateral already posted,
+ * correlated with the exposure risk factor via [correlationWithExposure]
+ * (a plain `BigDecimal` rather than [Rate], since correlation ranges
+ * from -1 to 1 and `Rate` disallows negative values). At each simulated
+ * step, collateral held is marked to market by this factor's own return,
+ * before that step's margining check — see
+ * [simulateCorrelatedGbmPathPair] for how the correlated draws are
+ * generated.
+ *
+ * Note that setting this at all draws twice as many random values per
+ * step (one per correlated path) as leaving it `null`: even a
+ * zero-volatility risk factor changes the exposure path's own random
+ * draw sequence compared to not setting it, since the second draw is
+ * still consumed. Two runs both setting it (whatever their correlation
+ * or volatility) stay comparable against each other, seed for seed.
+ */
+data class CorrelatedCollateralRiskFactor(
+    val volatility: Rate,
+    val correlationWithExposure: BigDecimal,
+) {
+    init {
+        require(correlationWithExposure in BigDecimal("-1")..BigDecimal.ONE) {
+            "correlationWithExposure must be between -1 and 1, got $correlationWithExposure"
         }
     }
 }
@@ -70,13 +105,12 @@ data class CollateralAgreement(
  * are then computed from the resulting post-margining net exposure
  * (`max(exposure - collateralHeld, 0)`).
  *
- * A margining frequency different from the simulation's own time step
- * and an [AssetClass] security haircut on the collateral posted (see
- * [CollateralAgreement.collateralAssetClass]) are both supported; not
- * modeled: FX on the collateral posted, or any correlation between the
- * exposure risk factor and collateral value (collateral held is a
- * deterministic function of the single exposure path via the margining
- * rule, not a second stochastic risk factor).
+ * A margining frequency different from the simulation's own time step,
+ * an [AssetClass] security haircut on the collateral posted (see
+ * [CollateralAgreement.collateralAssetClass]), and a second, correlated
+ * risk factor for collateral value between margining events (see
+ * [CollateralAgreement.collateralRiskFactor]) are all supported; not
+ * modeled: FX on the collateral posted.
  */
 fun simulateExposureProfileWithCollateral(
     initialExposure: Money,
@@ -94,7 +128,24 @@ fun simulateExposureProfileWithCollateral(
     val timeSteps = TimeSteps.of(horizonYears, assumptions.timeStepsPerYear)
     val marginEveryNSteps = marginEveryNSteps(collateralAgreement, assumptions.timeStepsPerYear)
     val s0 = initialExposure.amount.toDouble()
-    val exposurePaths = simulateGbmPaths(s0, volatility.asDecimal.toDouble(), timeSteps, assumptions)
+    val riskFactor = collateralAgreement.collateralRiskFactor
+    val exposurePaths: Array<DoubleArray>
+    val collateralValuePaths: Array<DoubleArray>?
+    if (riskFactor == null) {
+        exposurePaths = simulateGbmPaths(s0, volatility.asDecimal.toDouble(), timeSteps, assumptions)
+        collateralValuePaths = null
+    } else {
+        val (e, c) =
+            simulateCorrelatedGbmPathPair(
+                GbmFactor(s0, volatility.asDecimal.toDouble()),
+                GbmFactor(1.0, riskFactor.volatility.asDecimal.toDouble()),
+                riskFactor.correlationWithExposure.toDouble(),
+                timeSteps,
+                assumptions,
+            )
+        exposurePaths = e
+        collateralValuePaths = c
+    }
     val threshold = collateralAgreement.threshold.amount.toDouble()
     val minimumTransferAmount = collateralAgreement.minimumTransferAmount.amount.toDouble()
     val collateralHaircut = collateralAgreement.collateralAssetClass?.haircut?.asDecimal?.toDouble() ?: 0.0
@@ -107,6 +158,9 @@ fun simulateExposureProfileWithCollateral(
                 netExposure[0] = ZERO_EXPOSURE_FLOOR
                 for (step in 1..timeSteps.stepCount) {
                     val exposure = exposurePaths[path][step]
+                    if (collateralValuePaths != null) {
+                        collateralHeld *= collateralValuePaths[path][step] / collateralValuePaths[path][step - 1]
+                    }
                     if (step % marginEveryNSteps == 0) {
                         val gap = exposure - collateralHeld
                         val callAmount = gap - threshold

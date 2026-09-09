@@ -157,12 +157,61 @@ internal fun simulateGbmPaths(
             values[0] = s0
             for (step in 1..timeSteps.stepCount) {
                 val z = assumptions.random.nextGaussian()
-                val drift = -GBM_ITO_CORRECTION * sigma * sigma * timeSteps.dt
-                val diffusion = sigma * sqrt(timeSteps.dt) * z
-                values[step] = values[step - 1] * exp(drift + diffusion)
+                values[step] = gbmStep(values[step - 1], sigma, timeSteps.dt, z)
             }
         }
     }
+
+/** The starting value and annualized volatility of one GBM risk factor, bundled to keep parameter counts down. */
+internal data class GbmFactor(val s0: Double, val sigma: Double)
+
+/**
+ * Simulates two correlated driftless GBM paths together, one risk factor
+ * per path, sharing the same random draws so their correlation is
+ * respected: at each step, `Z1` (a fresh standard normal) drives path A,
+ * and `correlation x Z1 + sqrt(1 - correlation^2) x Z2` (`Z2` a second,
+ * independent standard normal) drives path B — a Cholesky decomposition
+ * of the 2x2 correlation matrix. `correlation = 1` makes path B move by
+ * exactly the same multiplicative factor as path A at every step (when
+ * both also share the same volatility); `correlation = -1` makes them
+ * move in exactly opposite directions.
+ */
+internal fun simulateCorrelatedGbmPathPair(
+    factorA: GbmFactor,
+    factorB: GbmFactor,
+    correlation: Double,
+    timeSteps: TimeSteps,
+    assumptions: SimulationAssumptions,
+): Pair<Array<DoubleArray>, Array<DoubleArray>> {
+    val orthogonalWeight = sqrt(1.0 - correlation * correlation)
+    val pathsA = Array(assumptions.pathCount) { DoubleArray(timeSteps.stepCount + 1) }
+    val pathsB = Array(assumptions.pathCount) { DoubleArray(timeSteps.stepCount + 1) }
+
+    for (path in 0 until assumptions.pathCount) {
+        pathsA[path][0] = factorA.s0
+        pathsB[path][0] = factorB.s0
+        for (step in 1..timeSteps.stepCount) {
+            val z1 = assumptions.random.nextGaussian()
+            val z2 = assumptions.random.nextGaussian()
+            val zB = correlation * z1 + orthogonalWeight * z2
+            pathsA[path][step] = gbmStep(pathsA[path][step - 1], factorA.sigma, timeSteps.dt, z1)
+            pathsB[path][step] = gbmStep(pathsB[path][step - 1], factorB.sigma, timeSteps.dt, zB)
+        }
+    }
+
+    return pathsA to pathsB
+}
+
+private fun gbmStep(
+    previous: Double,
+    sigma: Double,
+    dt: Double,
+    z: Double,
+): Double {
+    val drift = -GBM_ITO_CORRECTION * sigma * sigma * dt
+    val diffusion = sigma * sqrt(dt) * z
+    return previous * exp(drift + diffusion)
+}
 
 /**
  * Turns per-path, per-step values (already floored at zero, i.e. ready
