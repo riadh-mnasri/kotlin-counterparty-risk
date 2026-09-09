@@ -92,6 +92,94 @@ class CollateralRemarginingSimulatorTest {
     }
 
     @Test
+    fun `a margining frequency equal to the simulation's own time steps behaves identically to the default`() {
+        // Given: two independent Random instances seeded identically
+        val threshold = Money(BigDecimal("3000"), usd)
+        val volatility = Rate.ofPercentage(30.0)
+        val seed = 77L
+        val simulationTimeStepsPerYear = 12
+
+        // When
+        val defaultAssumptions =
+            SimulationAssumptions(timeStepsPerYear = simulationTimeStepsPerYear, random = java.util.Random(seed))
+        val defaultBehavior =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(threshold = threshold),
+                defaultAssumptions,
+            )
+        val explicitAssumptions =
+            SimulationAssumptions(timeStepsPerYear = simulationTimeStepsPerYear, random = java.util.Random(seed))
+        val explicitEveryStep =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(threshold = threshold, marginingStepsPerYear = simulationTimeStepsPerYear),
+                explicitAssumptions,
+            )
+
+        // Then
+        defaultBehavior.points.zip(explicitEveryStep.points).forEach { (a, b) ->
+            assertThat(a.epe.amount).isCloseTo(b.epe.amount, Offset.offset(BigDecimal("0.0001")))
+        }
+    }
+
+    @Test
+    fun `a coarser margining frequency lets net exposure exceed the threshold between margining events`() {
+        // Given: yearly margining on a monthly-stepped simulation, with a zero
+        // threshold and MTA so any margining event fully resets the gap to zero
+        val agreement =
+            CollateralAgreement(
+                threshold = Money.zero(usd),
+                minimumTransferAmount = Money.zero(usd),
+                marginingStepsPerYear = 1,
+            )
+        val volatility = Rate.ofPercentage(40.0)
+        val assumptions = SimulationAssumptions(timeStepsPerYear = 12)
+
+        // When
+        val profile =
+            simulateExposureProfileWithCollateral(initialExposure, volatility, BigDecimal("1"), agreement, assumptions)
+
+        // Then: step 0 (t=0) and step 12 (t=1y, a margining event) are exactly
+        // zero, but at least one of the 11 in-between, non-margining steps
+        // shows a nonzero net exposure since the gap was free to drift
+        assertThat(profile.points.first().epe.amount).isCloseTo(BigDecimal.ZERO, Offset.offset(BigDecimal("0.01")))
+        assertThat(profile.points.last().epe.amount).isCloseTo(BigDecimal.ZERO, Offset.offset(BigDecimal("0.01")))
+        val inBetweenSteps = profile.points.subList(1, profile.points.size - 1)
+        assertThat(inBetweenSteps).anySatisfy { point -> assertThat(point.epe.amount).isGreaterThan(BigDecimal.ZERO) }
+    }
+
+    @Test
+    fun `a margining frequency that does not evenly divide the simulation's time steps is rejected`() {
+        // Given: 12 time steps per year does not divide evenly by 5
+        val agreement = CollateralAgreement(threshold = Money(BigDecimal("1000"), usd), marginingStepsPerYear = 5)
+        val assumptions = SimulationAssumptions(timeStepsPerYear = 12)
+
+        // When / Then
+        assertThatIllegalArgumentException().isThrownBy {
+            val volatility = Rate.ofPercentage(20.0)
+            simulateExposureProfileWithCollateral(initialExposure, volatility, BigDecimal.ONE, agreement, assumptions)
+        }
+    }
+
+    @Test
+    fun `margining more often than the simulation's own time steps is rejected`() {
+        // Given: 12 time steps per year cannot support 24 margining events per year
+        val agreement = CollateralAgreement(threshold = Money(BigDecimal("1000"), usd), marginingStepsPerYear = 24)
+        val assumptions = SimulationAssumptions(timeStepsPerYear = 12)
+
+        // When / Then
+        assertThatIllegalArgumentException().isThrownBy {
+            val volatility = Rate.ofPercentage(20.0)
+            simulateExposureProfileWithCollateral(initialExposure, volatility, BigDecimal.ONE, agreement, assumptions)
+        }
+    }
+
+    @Test
     fun `a negative threshold is rejected`() {
         // Given / When / Then
         assertThatIllegalArgumentException().isThrownBy {
