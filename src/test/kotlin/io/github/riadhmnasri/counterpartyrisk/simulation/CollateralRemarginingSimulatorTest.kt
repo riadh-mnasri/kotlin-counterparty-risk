@@ -250,6 +250,106 @@ class CollateralRemarginingSimulatorTest {
     }
 
     @Test
+    fun `perfect correlation and matching volatility keeps collateral exactly in lockstep with exposure`() {
+        // Given: correlation 1.0 and the same volatility means collateral's
+        // GBM step uses the exact same random draw as exposure's, so they
+        // move by identical multiplicative factors at every step and the
+        // gap between them stays zero, needing no margin calls at all
+        val volatility = Rate.ofPercentage(40.0)
+        val riskFactor = CorrelatedCollateralRiskFactor(volatility, BigDecimal.ONE)
+        val agreement = CollateralAgreement(threshold = Money(BigDecimal("1"), usd), collateralRiskFactor = riskFactor)
+
+        // When
+        val profile = simulateExposureProfileWithCollateral(initialExposure, volatility, BigDecimal("2"), agreement)
+
+        // Then
+        assertThat(profile.points).allSatisfy { point ->
+            assertThat(point.epe.amount).isCloseTo(BigDecimal.ZERO, Offset.offset(BigDecimal("0.01")))
+        }
+    }
+
+    @Test
+    fun `negative correlation leaves more residual net exposure than positive correlation`() {
+        // Given: two independent Random instances seeded identically
+        val volatility = Rate.ofPercentage(30.0)
+        val threshold = Money(BigDecimal("2000"), usd)
+        val seed = 321L
+
+        // When
+        val positivelyCorrelated =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(
+                    threshold = threshold,
+                    minimumTransferAmount = Money.zero(usd),
+                    collateralRiskFactor = CorrelatedCollateralRiskFactor(volatility, BigDecimal.ONE),
+                ),
+                SimulationAssumptions(pathCount = 500, random = java.util.Random(seed)),
+            )
+        val negativelyCorrelated =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(
+                    threshold = threshold,
+                    minimumTransferAmount = Money.zero(usd),
+                    collateralRiskFactor = CorrelatedCollateralRiskFactor(volatility, BigDecimal("-1")),
+                ),
+                SimulationAssumptions(pathCount = 500, random = java.util.Random(seed)),
+            )
+
+        // Then: collateral moving opposite to exposure is a worse hedge
+        assertThat(negativelyCorrelated.effectiveExpectedPositiveExposure().amount)
+            .isGreaterThan(positivelyCorrelated.effectiveExpectedPositiveExposure().amount)
+    }
+
+    @Test
+    fun `a zero-volatility risk factor is unaffected by its correlation, since it never moves either way`() {
+        // Given: two independent Random instances seeded identically. Both
+        // configurations draw the same number of random values per step (a
+        // correlated pair), so unlike comparing against no risk factor at
+        // all, their exposure paths stay in sync draw for draw
+        val agreement = CollateralAgreement(threshold = Money(BigDecimal("2000"), usd))
+        val volatility = Rate.ofPercentage(30.0)
+        val zeroVolatility = Rate.ofDecimal(BigDecimal.ZERO)
+        val seed = 44L
+
+        // When
+        val positivelyCorrelatedButStill =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                agreement.copy(collateralRiskFactor = CorrelatedCollateralRiskFactor(zeroVolatility, BigDecimal.ONE)),
+                SimulationAssumptions(pathCount = 300, random = java.util.Random(seed)),
+            )
+        val negativelyCorrelatedButStill =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                agreement.copy(collateralRiskFactor = CorrelatedCollateralRiskFactor(zeroVolatility, BigDecimal("-1"))),
+                SimulationAssumptions(pathCount = 300, random = java.util.Random(seed)),
+            )
+
+        // Then: collateral value never moves regardless of correlation when its volatility is zero
+        positivelyCorrelatedButStill.points.zip(negativelyCorrelatedButStill.points).forEach { (a, b) ->
+            assertThat(a.epe.amount).isCloseTo(b.epe.amount, Offset.offset(BigDecimal("0.01")))
+        }
+    }
+
+    @Test
+    fun `correlation must be between -1 and 1`() {
+        // Given / When / Then
+        assertThatIllegalArgumentException().isThrownBy {
+            CorrelatedCollateralRiskFactor(Rate.ofPercentage(20.0), BigDecimal("1.5"))
+        }
+    }
+
+    @Test
     fun `a negative threshold is rejected`() {
         // Given / When / Then
         assertThatIllegalArgumentException().isThrownBy {
