@@ -18,7 +18,7 @@ A Kotlin library for computing counterparty credit risk exposure (EAD), expected
 - **Exposure calculation (EAD)** via a simplified version of the Basel "comprehensive approach with supervisory haircuts" for SFTs (repos, securities lending).
 - **Expected Loss**: `EL = PD × LGD × EAD`.
 - **Simplified CVA**: a single-period linear approximation from EAD, PD, LGD and the remaining maturity, or **multi-period CVA** discretizing the horizon via a flat-hazard-rate PD curve, with optional discounting.
-- **Credit limit checking**: OK / WARNING (80% of the limit) / BREACH status.
+- **Credit limit checking**: OK / WARNING (80% of the limit by default, configurable threshold) / BREACH status.
 - **Simulated exposure profile (PFE/EPE)**: Monte Carlo simulation (driftless geometric Brownian motion) of exposure over time, EPE and PFE per time step, effective EPE, and an IMM-style exposure at default (`alpha x effective EPE`), with or without collateral re-margining (symmetric threshold and minimum transfer amount).
 - `BigDecimal` arithmetic for every amount and rate (`Money`, `Rate`), a deliberate choice for a finance library; `Double` only appears internally for transcendental math with no native `BigDecimal` equivalent (the fractional-year power in `CreditCurve`, Gaussian draws in the Monte Carlo simulation), always converted straight back to `BigDecimal`.
 
