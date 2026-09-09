@@ -18,7 +18,7 @@ Une librairie Kotlin pour calculer l'exposition au risque de contrepartie (EAD),
 - **Calcul d'exposition (EAD)** via une version simplifiée de l'« approche globale avec décotes prudentielles » de Bâle pour les SFT (repos, prêts de titres).
 - **Perte attendue (Expected Loss)** : `EL = PD × LGD × EAD`.
 - **CVA simplifiée** : approximation linéaire mono-période à partir de l'EAD, de la PD, de la LGD et de la maturité restante, ou **CVA multi-période** en découpant l'horizon en périodes via une courbe de PD à taux de hasard constant, avec actualisation optionnelle.
-- **Contrôle de limite de crédit** : statut OK / WARNING (80% de la limite) / BREACH.
+- **Contrôle de limite de crédit** : statut OK / WARNING (80% de la limite par défaut, seuil configurable) / BREACH.
 - **Profil d'exposition simulé (PFE/EPE)** : simulation Monte Carlo (mouvement brownien géométrique sans dérive) de l'exposition dans le temps, EPE et PFE par pas de temps, EPE effective et exposition IMM (`alpha x EPE effective`), avec ou sans remargining du collatéral (seuil et montant de transfert minimum symétriques).
 - Arithmétique en `BigDecimal` pour tous les montants et taux (`Money`, `Rate`), choix délibéré pour une librairie financière ; `Double` n'apparaît qu'en interne pour les calculs transcendants sans équivalent `BigDecimal` natif (puissance à exposant fractionnaire dans `CreditCurve`, tirages aléatoires gaussiens dans la simulation Monte Carlo), toujours reconverti en `BigDecimal` immédiatement.
 
