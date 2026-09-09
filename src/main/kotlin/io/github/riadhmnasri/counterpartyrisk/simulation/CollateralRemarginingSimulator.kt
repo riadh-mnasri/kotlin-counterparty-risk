@@ -1,5 +1,6 @@
 package io.github.riadhmnasri.counterpartyrisk.simulation
 
+import io.github.riadhmnasri.counterpartyrisk.model.AssetClass
 import io.github.riadhmnasri.counterpartyrisk.model.Money
 import io.github.riadhmnasri.counterpartyrisk.model.Rate
 import java.math.BigDecimal
@@ -21,11 +22,21 @@ private const val ZERO_EXPOSURE_FLOOR = 0.0
  * must then be evenly divisible by it, checked when the simulation runs
  * rather than here, since this type doesn't know what simulation it'll
  * be used with.
+ *
+ * [collateralAssetClass] defaults to `null`, meaning collateral is
+ * treated as cash-equivalent (no haircut, the original behavior). Set it
+ * to apply that asset class's [AssetClass.haircut] to every margin call:
+ * only `callAmount x (1 - haircut)` of *effective* value is actually
+ * recognized, mirroring how [io.github.riadhmnasri.counterpartyrisk.exposure.computeExposure]
+ * already treats a haircut as reducing collateral's effective coverage.
+ * Returns are not haircut-adjusted (giving back already-discounted
+ * effective value is symmetric regardless of asset class).
  */
 data class CollateralAgreement(
     val threshold: Money,
     val minimumTransferAmount: Money = Money.zero(threshold.currency),
     val marginingStepsPerYear: Int? = null,
+    val collateralAssetClass: AssetClass? = null,
 ) {
     init {
         require(threshold.amount >= BigDecimal.ZERO) { "Collateral agreement threshold cannot be negative" }
@@ -59,11 +70,13 @@ data class CollateralAgreement(
  * are then computed from the resulting post-margining net exposure
  * (`max(exposure - collateralHeld, 0)`).
  *
- * Not modeled: a margining frequency different from the simulation's own
- * time step, haircuts or FX on the collateral posted, or any correlation
- * between the exposure risk factor and collateral value (collateral held
- * is a deterministic function of the single exposure path via the
- * margining rule, not a second stochastic risk factor).
+ * A margining frequency different from the simulation's own time step
+ * and an [AssetClass] security haircut on the collateral posted (see
+ * [CollateralAgreement.collateralAssetClass]) are both supported; not
+ * modeled: FX on the collateral posted, or any correlation between the
+ * exposure risk factor and collateral value (collateral held is a
+ * deterministic function of the single exposure path via the margining
+ * rule, not a second stochastic risk factor).
  */
 fun simulateExposureProfileWithCollateral(
     initialExposure: Money,
@@ -84,6 +97,8 @@ fun simulateExposureProfileWithCollateral(
     val exposurePaths = simulateGbmPaths(s0, volatility.asDecimal.toDouble(), timeSteps, assumptions)
     val threshold = collateralAgreement.threshold.amount.toDouble()
     val minimumTransferAmount = collateralAgreement.minimumTransferAmount.amount.toDouble()
+    val collateralHaircut = collateralAgreement.collateralAssetClass?.haircut?.asDecimal?.toDouble() ?: 0.0
+    val collateralRecognitionRate = 1.0 - collateralHaircut
 
     val netExposureAfterMargin =
         Array(assumptions.pathCount) { path ->
@@ -97,7 +112,8 @@ fun simulateExposureProfileWithCollateral(
                         val callAmount = gap - threshold
                         val returnAmount = -threshold - gap
                         when {
-                            gap > threshold && callAmount >= minimumTransferAmount -> collateralHeld += callAmount
+                            gap > threshold && callAmount >= minimumTransferAmount ->
+                                collateralHeld += callAmount * collateralRecognitionRate
                             gap < -threshold && returnAmount >= minimumTransferAmount -> collateralHeld -= returnAmount
                         }
                     }

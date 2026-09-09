@@ -1,5 +1,6 @@
 package io.github.riadhmnasri.counterpartyrisk.simulation
 
+import io.github.riadhmnasri.counterpartyrisk.model.AssetClass
 import io.github.riadhmnasri.counterpartyrisk.model.Currency
 import io.github.riadhmnasri.counterpartyrisk.model.Money
 import io.github.riadhmnasri.counterpartyrisk.model.Rate
@@ -176,6 +177,75 @@ class CollateralRemarginingSimulatorTest {
         assertThatIllegalArgumentException().isThrownBy {
             val volatility = Rate.ofPercentage(20.0)
             simulateExposureProfileWithCollateral(initialExposure, volatility, BigDecimal.ONE, agreement, assumptions)
+        }
+    }
+
+    @Test
+    fun `a collateral asset class haircut leaves more residual net exposure than no haircut`() {
+        // Given: two independent Random instances seeded identically, so the
+        // simulated exposure path is the same on both sides; a nonzero
+        // threshold and zero MTA so margin calls happen and are fully acted on
+        val threshold = Money(BigDecimal("2000"), usd)
+        val volatility = Rate.ofPercentage(40.0)
+        val seed = 55L
+
+        // When
+        val withoutHaircut =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(threshold = threshold, minimumTransferAmount = Money.zero(usd)),
+                SimulationAssumptions(pathCount = 500, random = java.util.Random(seed)),
+            )
+        val withHaircut =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                CollateralAgreement(
+                    threshold = threshold,
+                    minimumTransferAmount = Money.zero(usd),
+                    collateralAssetClass = AssetClass.EQUITY,
+                ),
+                SimulationAssumptions(pathCount = 500, random = java.util.Random(seed)),
+            )
+
+        // Then: the same posted calls cover less of the gap once haircut, so
+        // net exposure with a haircut is never better (lower) than without
+        withoutHaircut.points.zip(withHaircut.points).forEach { (noHaircut, haircut) ->
+            assertThat(haircut.epe.amount).isGreaterThanOrEqualTo(noHaircut.epe.amount)
+        }
+    }
+
+    @Test
+    fun `no collateral asset class behaves identically to the previous cash-equivalent default`() {
+        // Given: two independent Random instances seeded identically
+        val agreement = CollateralAgreement(threshold = Money(BigDecimal("2000"), usd))
+        val volatility = Rate.ofPercentage(30.0)
+        val seed = 99L
+
+        // When
+        val implicitDefault =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                agreement.copy(collateralAssetClass = null),
+                SimulationAssumptions(pathCount = 300, random = java.util.Random(seed)),
+            )
+        val explicitCash =
+            simulateExposureProfileWithCollateral(
+                initialExposure,
+                volatility,
+                BigDecimal("2"),
+                agreement.copy(collateralAssetClass = AssetClass.CASH),
+                SimulationAssumptions(pathCount = 300, random = java.util.Random(seed)),
+            )
+
+        // Then: cash's haircut is 0 percent, same as the implicit no-haircut default
+        implicitDefault.points.zip(explicitCash.points).forEach { (a, b) ->
+            assertThat(a.epe.amount).isCloseTo(b.epe.amount, Offset.offset(BigDecimal("0.0001")))
         }
     }
 
